@@ -56,13 +56,12 @@
 
 import time
 import torch
-import torchvision.datasets as datasets  # Standard datasets
 from tqdm import tqdm
 from torch import Tensor, nn, optim
-from vae import VariationalAutoEncoder
-from torchvision import transforms
-from torchvision.utils import save_image
 from torch.utils.data import DataLoader
+from dataset import Dataset
+from utils import get_data
+from vae import VariationalAutoEncoder
 
 # Configuration
 # Configuration
@@ -92,14 +91,15 @@ DENSE_LAYERS = 2
 GRAD_REGULARIZATION_LIMIT = 10
 L2_REGULARIZATION = 10e-4
 
-TARGET_DECAY = 10e-4
-WAVEBOUND_ERROR_DEVIATION = 10e-2
+TARGET_DECAY = 0.5
+WAVEBOUND_ERROR_DEVIATION = 1e-4
 
 # Dataset Loading
-dataset = datasets.MNIST(
-    root="dataset/", train=True, transform=transforms.ToTensor(), download=True
+(x_train, _), (x_test, y_test) = get_data(
+    "machine-1-1", None, None, train_start=0, test_start=0
 )
-train_loader = DataLoader(dataset=dataset, batch_size=BATCH_SIZE, shuffle=True)
+data = Dataset(data=x_train, window=WINDOW_LENGTH)
+train_loader = DataLoader(dataset=data, batch_size=BATCH_SIZE)
 source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
 target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
 robust_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
@@ -125,6 +125,7 @@ target_model.train()
 
 for epoch in range(1, NUM_EPOCHS + 1):
     loop = tqdm(enumerate(train_loader))
+    print(loop)
     start_time = time.process_time()
     for counter, (x, _) in loop:
         # Forward pass both
