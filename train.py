@@ -73,26 +73,26 @@ else:
     torch.device("cpu")
 
 # DEVICE = torch.device("mps") if  else  if  else "cpu")
-WINDOW_LENGTH = 100
-BATCH_SIZE = 50
-LR_RATE = 10e-3
-NUM_EPOCHS = 3
-TEST_DATA = 0.3  # 30%
+WINDOW_LENGTH = 100  # h
+BATCH_SIZE = 50  # h
+LR_RATE = 10e-3  # h
+NUM_EPOCHS = 3  # range: any
+TEST_DATA = 0.3  # 30% range: 10-100%
 
 RNN_H_DIM = 500
 DENSE_DIM = 500
-Z_DIM = 3
+Z_DIM = 3  # h range: 3-10
 X_DIM = 38
-STD_DEVIATION_EPSILON = 10e-4
-NUM_PLANAR_TRANSOFORMS = 20
+STD_DEVIATION_EPSILON = 10e-4  # h
+NUM_PLANAR_TRANSOFORMS = 20  # h
 TIME_AXIS = 1
-DENSE_LAYERS = 2
+DENSE_LAYERS = 2  # h
 
-GRAD_REGULARIZATION_LIMIT = 10
-L2_REGULARIZATION = 10e-4
+GRAD_REGULARIZATIONLIMIT = 10  # h
+L2_REGULARIZATION = 10e-4  # h
 
-TARGET_DECAY = 0.5
-WAVEBOUND_ERROR_DEVIATION = 1e-4
+TARGET_DECAY = 0.5  # h range: 0-1
+WAVEBOUND_ERROR_DEVIATION = 1e-4  # h range: idk
 
 # Dataset Loading
 (x_train, _), (x_test, y_test) = get_data(
@@ -125,44 +125,48 @@ target_model.train()
 
 for epoch in range(1, NUM_EPOCHS + 1):
     loop = tqdm(enumerate(train_loader))
-    print(loop)
     start_time = time.process_time()
-    for counter, (x, _) in loop:
+    for counter, data in loop:
         # Forward pass both
-        x = x.to(DEVICE).view(x.shape[0], X_DIM)
-        x_reconstructed, mu, sigma = source_model(x)
-        x_reconstructed_t, mu_t, sigma_t = target_model(x)
+        # data = Tensor(data).to(DEVICE).view(data.shape[0], X_DIM)
+        batch = torch.as_tensor(data, device=DEVICE)
+        for window in batch:
+            for record in window:
+                x_reconstructed, mu, sigma = source_model(record)
+                x_reconstructed_t, mu_t, sigma_t = target_model(record)
 
-        # Compute loss source network
-        reconstruction_loss: Tensor = loss_fn(x_reconstructed, x)
-        kl_div: Tensor = -torch.sum(
-            1 + torch.log(sigma.pow(2)) - mu.pow(2) - sigma.pow(2)
-        )
-        loss: Tensor = reconstruction_loss + kl_div
-
-        # Compute loss target  network
-        loss_t: Tensor = wave_empirical_risk(x_reconstructed_t, x)
-
-        # Compute source + target loss
-        wave_empirical_risk_bound: Tensor = compute_risk_with_bound(loss, loss_t)
-
-        # Backprop
-        robust_optimizer.zero_grad()
-        # loss.backward()
-        wave_empirical_risk_bound.backward()
-        robust_optimizer.step()
-        with torch.no_grad():
-            for (
-                source_params,
-                target_params,
-            ) in zip(source_model.parameters(), target_model.parameters()):
-                source_params.data.mul_(TARGET_DECAY)
-                torch.add(
-                    source_params.data,
-                    target_params.data,
-                    alpha=(1 - TARGET_DECAY),
-                    out=source_params.data,
+                # Compute loss source network
+                reconstruction_loss: Tensor = loss_fn(x_reconstructed, record)
+                kl_div: Tensor = -torch.sum(
+                    1 + torch.log(sigma.pow(2)) - mu.pow(2) - sigma.pow(2)
                 )
+                loss: Tensor = reconstruction_loss + kl_div
+
+                # Compute loss target  network
+                loss_t: Tensor = wave_empirical_risk(x_reconstructed_t, record)
+
+                # Compute source + target loss
+                wave_empirical_risk_bound: Tensor = compute_risk_with_bound(
+                    loss, loss_t
+                )
+
+                # Backprop
+                robust_optimizer.zero_grad()
+                # loss.backward()
+                wave_empirical_risk_bound.backward()
+                robust_optimizer.step()
+                with torch.no_grad():
+                    for (
+                        source_params,
+                        target_params,
+                    ) in zip(source_model.parameters(), target_model.parameters()):
+                        source_params.data.mul_(TARGET_DECAY)
+                        torch.add(
+                            source_params.data,
+                            target_params.data,
+                            alpha=(1 - TARGET_DECAY),
+                            out=source_params.data,
+                        )
         loop.set_postfix(loss=loss.item())
         avg_loss += loss.item()
         if counter % 100 == 0:

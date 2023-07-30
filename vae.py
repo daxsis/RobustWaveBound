@@ -29,7 +29,7 @@ class VariationalAutoEncoder(nn.Module):
         self,
         input_dim=38,
         h_dim=200,
-        h_layers=2,
+        h_layers=2,  # prob remove
         z_dim=3,
         seq_len=100,
         planar_length=20,
@@ -46,18 +46,19 @@ class VariationalAutoEncoder(nn.Module):
         self.h_dim = h_dim
         self.h_layers = h_layers
         self.device = device
-        self.zt_minus_1: Tensor = torch.Tensor()  # reusing the last calculated Z
-        self.zs: Tensor = torch.Tensor()
+        self.zt_minus_1: Tensor = None  # reusing the last calculated Z
+        # self.zs: Tensor = None
         # rewrite to use single input because we need initial
         # zt-1 as a concat to dense layer
 
         # encoder - q net
         # Define the GRU
-        self.h_for_q_z = nn.GRU(
+        self.h_qnet = torch.randn(self.h_dim, device=self.device)
+        self.h_for_q_z = nn.GRUCell(
             input_size=self.input_dim,
             hidden_size=self.h_dim,
-            batch_first=True,
-            num_layers=self.h_layers,
+            # batch_first=True,
+            # num_layers=self.h_layers,
         )
         # Define the linear layers for the mean and standard deviation
         self.q_dense = nn.Sequential(
@@ -99,11 +100,10 @@ class VariationalAutoEncoder(nn.Module):
         #     #     torch.zeros(z_dim), torch.diag(torch.ones(z_dim))
         #     # ),
         # )
-        self.h_for_p_x = nn.GRU(
+        self.h_pnet = torch.randn(self.h_dim, device=self.device)
+        self.h_for_p_x = nn.GRUCell(
             input_size=self.z_dim,
             hidden_size=self.h_dim,
-            num_layers=self.h_layers,
-            batch_first=True,
         )
         self.p_dense = nn.Sequential(
             nn.Linear(self.h_dim, self.h_dim),
@@ -123,14 +123,20 @@ class VariationalAutoEncoder(nn.Module):
         # self.p_softmax_sigma = nn.Softmax(z_dim)
 
     def encode(self, x: Tensor) -> Tensor:
-        x = torch.unbind(x, TIME_AXIS)
-        seq_len = len(x)
+        # x = torch.unbind(x, TIME_AXIS)
+        # seq_len = len(x)
+        # print(x.size)
         # for _ in range(seq_len):
-        h_qnet, _ = self.h_for_q_z(x)
+        print(x.size())
+        print(self.h_qnet.size())
+        h_qnet = self.h_for_q_z(x, self.h_qnet)
+        self.h_qnet = h_qnet  # update hidden state
         if self.zt_minus_1 is None:
-            self.zt_minus_1 = torch.randn(x.size(0), self.z_dim).to(self.device)
+            self.zt_minus_1 = torch.randn(x.size(0), device=self.device)
         h_qnet_concat: Tensor = torch.cat(
-            [h_qnet, self.zt_minus_1.unsqueeze(1).repeat(1, seq_len, 1)], dim=-1
+            # [h_qnet, self.zt_minus_1.unsqueeze(1).repeat(1, seq_len, 1)], dim=-1
+            [h_qnet, self.zt_minus_1],
+            dim=-1,
         )
         z_params = self.q_dense(h_qnet_concat)
         # mu_z, log_var_z = torch.chunk(z_params, 2, dim=-1)
@@ -154,7 +160,8 @@ class VariationalAutoEncoder(nn.Module):
         # observation equation
         zt = self.O_theta(zt) + self.observation_noise.sample()
 
-        h_pnet, _ = self.h_for_p_x(zt)
+        h_pnet = self.h_for_p_x(zt, self.h_pnet)
+        self.h_pnet = h_pnet  # update hidden for p net gru cell
         x_params = self.p_dense(h_pnet)
         mu_x = self.q_mu(x_params)
         log_var_x = self.q_sigma(x_params)
