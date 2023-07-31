@@ -89,9 +89,15 @@ for epoch in range(1, NUM_EPOCHS + 1):
             for record in window:
                 print(record)
                 z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
-                z_t, mu_z_t, log_var_z_t, x_t_t, mu_x_t, log_var_x_t = source_model(
-                    record
-                )
+                source_model(record)
+
+                # transfer all tesnors to one device
+                record.to(DEVICE)
+                x_t.to(DEVICE)
+                mu_x.to(DEVICE)
+                log_var_x.to(DEVICE)
+                mu_z.to(DEVICE)
+                log_var_z.to(DEVICE)
 
                 source_loss = loss_function(
                     record, x_t, mu_x, log_var_x, mu_z, log_var_z
@@ -118,7 +124,6 @@ for epoch in range(1, NUM_EPOCHS + 1):
                         )
 
                 del z, mu_z, log_var_z, x_t, mu_x, log_var_x
-                del z_t, mu_z_t, log_var_z_t, x_t_t, mu_x_t, log_var_x_t
 
                 print(
                     "Epoch {}......Step: {}/{}...Window: {} %.... Average Loss for Epoch: {} for batch: {}".format(
