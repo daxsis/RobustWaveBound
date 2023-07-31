@@ -161,6 +161,7 @@ if __name__ == "__main__":
         input_dim=X_DIM, h_dim=RNN_H_DIM, z_dim=Z_DIM, device="mps"
     )
     print(vae)
+    print(vae.parameters())
     # x_reconstructed, mu, sigma = vae(x)
     # print(x_reconstructed.shape)
     # print(mu.shape)

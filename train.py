@@ -11,9 +11,9 @@ from vae import VariationalAutoEncoder, loss_function
 if torch.backends.mps.is_available():
     DEVICE = torch.device("mps")
 elif torch.cuda.is_available():
-    torch.device("cuda")
+    DEVICE = torch.device("cuda")
 else:
-    torch.device("cpu")
+    DEVICE = torch.device("cpu")
 
 # DEVICE = torch.device("mps") if  else  if  else "cpu")
 WINDOW_LENGTH = 100  # h
@@ -42,9 +42,15 @@ WAVEBOUND_ERROR_DEVIATION = 1e-4  # h range: idk
     "machine-1-1", None, None, train_start=0, test_start=0
 )
 data = Dataset(data=x_train, window=WINDOW_LENGTH)
-train_loader = DataLoader(dataset=data, batch_size=BATCH_SIZE)
-target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
-source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
+train_loader = DataLoader(
+    dataset=data, batch_size=BATCH_SIZE, num_workers=4, pin_memory=True
+)
+target_model = nn.DataParallel(
+    VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
+).to(DEVICE)
+source_model = nn.DataParallel(
+    VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
+).to(DEVICE)
 target_optimizer = optim.Adam(target_model.parameters(), lr=LR_RATE)
 source_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
 
