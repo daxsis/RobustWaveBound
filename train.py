@@ -45,12 +45,18 @@ data = Dataset(data=x_train, window=WINDOW_LENGTH)
 train_loader = DataLoader(
     dataset=data, batch_size=BATCH_SIZE, num_workers=4, pin_memory=True
 )
-target_model = nn.DataParallel(
-    VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
-).to(DEVICE)
-source_model = nn.DataParallel(
-    VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
-).to(DEVICE)
+# Use nn.DataParallel to wrap your model
+target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
+if torch.cuda.is_available() & torch.cuda.device_count() > 1:
+    target_model = nn.DataParallel(target_model)
+
+source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
+if torch.cuda.is_available() & torch.cuda.device_count() > 1:
+    source_model = nn.DataParallel(source_model)
+
+target_model.to(DEVICE)
+source_model.to(DEVICE)
+
 target_optimizer = optim.Adam(target_model.parameters(), lr=LR_RATE)
 source_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
 
@@ -74,13 +80,14 @@ source_model.train()
 for epoch in range(1, NUM_EPOCHS + 1):
     loop = tqdm(enumerate(train_loader))
     start_time = time.process_time()
-    for counter, data in loop:
-        batch = torch.as_tensor(data, device=DEVICE)
+    for counter, batch in loop:
+        # batch = torch.as_tensor(data, device=DEVICE)
         window_counter = 0
         for window in batch:
             window_counter += 1
             window_loss = 0
             for record in window:
+                print(record)
                 z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
                 z_t, mu_z_t, log_var_z_t, x_t_t, mu_x_t, log_var_x_t = source_model(
                     record
