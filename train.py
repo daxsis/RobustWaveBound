@@ -68,7 +68,7 @@ source_model.train()
 for epoch in range(1, NUM_EPOCHS + 1):
     loop = tqdm(enumerate(train_loader))
     start_time = time.process_time()
-    for counter, batch in loop:
+    for counter, data in loop:
         batch = torch.as_tensor(data, device=DEVICE)
         window_counter = 0
         for window in batch:

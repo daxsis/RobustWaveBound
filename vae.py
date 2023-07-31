@@ -49,29 +49,25 @@ class VariationalAutoEncoder(nn.Module):
         # encoder - q net
         # Define the GRU
         self.h_qnet = torch.randn(self.h_dim, device=self.device)
-        self.h_for_q_z = nn.GRUCell(
-            input_size=self.input_dim, hidden_size=self.h_dim
-        ).to(self.device)
+        self.h_for_q_z = nn.GRUCell(input_size=self.input_dim, hidden_size=self.h_dim)
         # Define the linear layers for the mean and standard deviation
         self.q_dense = nn.Sequential(
             nn.Linear(self.h_dim + self.input_dim, self.h_dim),
             nn.ReLU(),
             nn.Linear(self.h_dim, self.h_dim),
             nn.ReLU(),
-        ).to(self.device)
-        self.q_mu = nn.Linear(self.h_dim, self.z_dim).to(self.device)
+        )
+        self.q_mu = nn.Linear(self.h_dim, self.z_dim)
         self.q_sigma = nn.Sequential(
             nn.Linear(self.h_dim, self.z_dim), nn.Softplus(1, 1)
-        ).to(self.device)
+        )
         # Define the planar normalizing flow layer
-        self.q_planar_nf = PlanarFlow(
-            dim=self.z_dim, num_tranforms=self.planar_length
-        ).to(self.device)
+        self.q_planar_nf = PlanarFlow(dim=self.z_dim, num_tranforms=self.planar_length)
 
         # decoder - p net
         # Initialize transition and observation noise for LG-SSM
-        self.T_theta = nn.Linear(self.z_dim, self.z_dim, bias=False).to(self.device)
-        self.O_theta = nn.Linear(self.z_dim, self.z_dim, bias=False).to(self.device)
+        self.T_theta = nn.Linear(self.z_dim, self.z_dim, bias=False)
+        self.O_theta = nn.Linear(self.z_dim, self.z_dim, bias=False)
         # Initialize transition and observation noise for LG-SSM
         self.transition_noise = torch.distributions.Normal(0, 1)
         self.observation_noise = torch.distributions.Normal(0, 1)
@@ -85,11 +81,11 @@ class VariationalAutoEncoder(nn.Module):
             nn.ReLU(),
             nn.Linear(self.h_dim, self.h_dim),
             nn.ReLU(),
-        ).to(self.device)
-        self.p_mu = nn.Linear(self.h_dim, self.input_dim).to(self.device)
+        )
+        self.p_mu = nn.Linear(self.h_dim, self.input_dim)
         self.p_sigma = nn.Sequential(
             nn.Linear(self.h_dim, self.input_dim), nn.Softplus(1, 1)
-        ).to(self.device)
+        )
 
     def encode(self, x: Tensor) -> Tensor:
         h_qnet = self.h_for_q_z(x, self.h_qnet)
