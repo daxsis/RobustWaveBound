@@ -42,22 +42,9 @@ WAVEBOUND_ERROR_DEVIATION = 1e-4  # h range: idk
     "machine-1-1", None, None, train_start=0, test_start=0
 )
 data = Dataset(data=x_train, window=WINDOW_LENGTH)
-train_loader = DataLoader(
-    dataset=data, batch_size=BATCH_SIZE, num_workers=4, pin_memory=True
-)
-# Use nn.DataParallel to wrap your model
+train_loader = DataLoader(dataset=data, batch_size=BATCH_SIZE)
 target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
-# if torch.cuda.is_available() and torch.cuda.device_count() > 1:
-#     print("Using DataParallel arch")
-#     target_model = nn.DataParallel(target_model)
-
 source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
-# if torch.cuda.is_available() and torch.cuda.device_count() > 1:
-# source_model = nn.DataParallel(source_model)
-
-# target_model.to(DEVICE)
-# source_model.to(DEVICE)
-
 target_optimizer = optim.Adam(target_model.parameters(), lr=LR_RATE)
 source_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
 
@@ -85,12 +72,10 @@ for epoch in range(1, NUM_EPOCHS + 1):
         batch = torch.as_tensor(data, device=DEVICE)
         window_counter = 0
         for window in batch:
-            # window = window.to(DEVICE)  # Move window tensor to the right device
             window_counter += 1
             window_loss = 0
             print("We are in epoch {} window: {}".format(counter + 1, window_counter))
             for record in window:
-                # record = record.to(DEVICE)  # Move record tensor to the right device
                 print("record from window: ", record)
                 z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
                 source_model(record)
