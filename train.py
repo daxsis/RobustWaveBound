@@ -47,12 +47,12 @@ train_loader = DataLoader(
 )
 # Use nn.DataParallel to wrap your model
 target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
-if torch.cuda.is_available() & torch.cuda.device_count() > 1:
+if torch.cuda.is_available() and torch.cuda.device_count() > 1:
     print("Using DataParallel arch")
     target_model = nn.DataParallel(target_model)
 
 source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
-if torch.cuda.is_available() & torch.cuda.device_count() > 1:
+if torch.cuda.is_available() and torch.cuda.device_count() > 1:
     source_model = nn.DataParallel(source_model)
 
 target_model.to(DEVICE)
@@ -90,7 +90,6 @@ for epoch in range(1, NUM_EPOCHS + 1):
             window_loss = 0
             for record in window:
                 record = record.to(DEVICE)  # Move record tensor to the right device
-                print(record)
                 z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
                 source_model(record)
 
