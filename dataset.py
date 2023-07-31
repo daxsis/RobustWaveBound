@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 
 class Dataset(Dataset):
     def __init__(self, data, window) -> None:
-        super(Dataset).__init__()
+        super(Dataset,self).__init__()
         self.data = data
         self.window = window
 
