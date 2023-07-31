@@ -48,6 +48,7 @@ train_loader = DataLoader(
 # Use nn.DataParallel to wrap your model
 target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
 if torch.cuda.is_available() & torch.cuda.device_count() > 1:
+    print("Using DataParallel arch")
     target_model = nn.DataParallel(target_model)
 
 source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
@@ -127,16 +128,17 @@ for epoch in range(1, NUM_EPOCHS + 1):
 
                 del z, mu_z, log_var_z, x_t, mu_x, log_var_x
 
-                print(
-                    "Epoch {}......Step: {}/{}...Window: {} %.... Average Loss for Epoch: {} for batch: {}".format(
-                        epoch,
-                        (counter + 1),
-                        (window_counter / BATCH_SIZE) * 100,
-                        len(train_loader),
-                        avg_loss / (counter + 1),
-                        window_loss / WINDOW_LENGTH,
+                if window_counter % 50 == 0:
+                    print(
+                        "Epoch {}......Step: {}/{}...Window: {} %.... Average Loss for Epoch: {} for batch: {}".format(
+                            epoch,
+                            (counter + 1),
+                            len(train_loader),
+                            (window_counter / BATCH_SIZE) * 100,
+                            avg_loss / (counter + 1),
+                            window_loss / WINDOW_LENGTH,
+                        )
                     )
-                )
 
         loop.set_postfix(loss=target_loss.item())
         avg_loss += target_loss.item()
