@@ -6,12 +6,12 @@ from torch import Tensor
 class PlanarTransform(nn.Module):
     """Implementation of the invertible transformation used in planar flow:
         f(z) = z + u * h(dot(w.T, z) + b)
-    See Section 4.1 in https://arxiv.org/pdf/1505.05770.pdf. 
+    See Section 4.1 in https://arxiv.org/pdf/1505.05770.pdf.
     """
 
-    def __init__(self, dim: int = 2):
+    def __init__(self, dim: int = 3):
         """Initialise weights and bias.
-        
+
         Args:
             dim: Dimensionality of the distribution to be estimated.
         """
@@ -21,12 +21,18 @@ class PlanarTransform(nn.Module):
         self.u = nn.Parameter(torch.randn(1, dim).normal_(0, 0.1))
 
     def forward(self, z: Tensor) -> Tensor:
+        if len(z.shape) == 1:
+            z = z.unsqueeze(0)
+
         if torch.mm(self.u, self.w.T) < -1:
             self.get_u_hat()
 
         return z + self.u * nn.Tanh()(torch.mm(z, self.w.T) + self.b)
 
     def log_det_J(self, z: Tensor) -> Tensor:
+        if len(z.shape) == 1:
+            z = z.unsqueeze(0)
+
         if torch.mm(self.u, self.w.T) < -1:
             self.get_u_hat()
         a = torch.mm(z, self.w.T) + self.b
@@ -37,7 +43,7 @@ class PlanarTransform(nn.Module):
         return log_det
 
     def get_u_hat(self) -> None:
-        """Enforce w^T u >= -1. When using h(.) = tanh(.), this is a sufficient condition 
+        """Enforce w^T u >= -1. When using h(.) = tanh(.), this is a sufficient condition
         for invertibility of the transformation f(z). See Appendix A.1.
         """
         wtu = torch.mm(self.u, self.w.T)

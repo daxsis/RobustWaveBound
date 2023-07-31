@@ -1,59 +1,3 @@
-# import torch
-# import torch.nn
-# import matplotlib.pyplot as plt
-# from planar_flow import PlanarFlow
-# from target_distribution import TargetDistribution
-# from loss import VariationalLoss
-# from utils.plot import plot_transformation
-
-# if __name__ == "__main__":
-#     # ------------ parameters ------------
-#     target_distr = "ring"  # U_1, U_2, U_3, U_4, ring
-#     flow_length = 32
-#     dim = 2
-#     num_batches = 20000
-#     batch_size = 128
-#     lr = 6e-4
-#     xlim = ylim = 7  # 5 for U_1 to U_4, 7 for ring
-#     # ------------------------------------
-
-#     density = TargetDistribution(target_distr)
-#     model = PlanarFlow(dim, K=flow_length)
-#     bound = VariationalLoss(density)
-#     optimiser = torch.optim.Adam(model.parameters(), lr=lr)
-
-#     # Train model.
-#     for batch_num in range(1, num_batches + 1):
-#         # Get batch from N(0,I).
-#         batch = torch.zeros(size=(batch_size, 2)).normal_(mean=0, std=1)
-#         # Pass batch through flow.
-#         zk, log_jacobians = model(batch)
-#         # Compute loss under target distribution.
-#         loss = bound(batch, zk, log_jacobians)
-
-#         optimiser.zero_grad()
-#         loss.backward()
-#         optimiser.step()
-
-#         if batch_num % 1000 == 0:
-#             print(f"(batch_num {batch_num:05d}/{num_batches}) loss: {loss}")
-
-#         if batch_num == 1 or batch_num % 100 == 0:
-#             # Save plots during training. Plots are saved to the 'train_plots' folder.
-#             plot_training(model, flow_length, batch_num, lr, axlim)
-
-#     if torch.isnan(log_jacobians).sum() == 0:
-#         torch.save(
-#             {
-#                 "epoch": num_batches,
-#                 "model_state_dict": model.state_dict(),
-#                 "optimizer_state_dict": optimiser.state_dict(),
-#                 "loss": loss,
-#             },
-#             "models/model_" + target_distr + "_K_" + str(flow_length) + ".pt",
-#         )
-
-
 import time
 import torch
 from tqdm import tqdm
@@ -61,9 +5,8 @@ from torch import Tensor, nn, optim
 from torch.utils.data import DataLoader
 from dataset import Dataset
 from utils import get_data
-from vae import VariationalAutoEncoder
+from vae import VariationalAutoEncoder, loss_function
 
-# Configuration
 # Configuration
 if torch.backends.mps.is_available():
     DEVICE = torch.device("mps")
@@ -100,11 +43,10 @@ WAVEBOUND_ERROR_DEVIATION = 1e-4  # h range: idk
 )
 data = Dataset(data=x_train, window=WINDOW_LENGTH)
 train_loader = DataLoader(dataset=data, batch_size=BATCH_SIZE)
-source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
 target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
-robust_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
-wave_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
-loss_fn = nn.BCELoss(reduction="sum")
+source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
+target_optimizer = optim.Adam(target_model.parameters(), lr=LR_RATE)
+source_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
 
 epoch_times = []
 avg_loss = 0
@@ -120,55 +62,46 @@ def compute_risk_with_bound(source_network, target_network):
     return abs_diff + (target_network - WAVEBOUND_ERROR_DEVIATION)
 
 
-source_model.train()
 target_model.train()
+source_model.train()
 
 for epoch in range(1, NUM_EPOCHS + 1):
     loop = tqdm(enumerate(train_loader))
     start_time = time.process_time()
     for counter, data in loop:
-        # Forward pass both
-        # data = Tensor(data).to(DEVICE).view(data.shape[0], X_DIM)
         batch = torch.as_tensor(data, device=DEVICE)
         for window in batch:
             for record in window:
-                x_reconstructed, mu, sigma = source_model(record)
-                x_reconstructed_t, mu_t, sigma_t = target_model(record)
-
-                # Compute loss source network
-                reconstruction_loss: Tensor = loss_fn(x_reconstructed, record)
-                kl_div: Tensor = -torch.sum(
-                    1 + torch.log(sigma.pow(2)) - mu.pow(2) - sigma.pow(2)
+                z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
+                z_t, mu_z_t, log_var_z_t, x_t_t, mu_x_t, log_var_x_t = source_model(
+                    record
                 )
-                loss: Tensor = reconstruction_loss + kl_div
 
-                # Compute loss target  network
-                loss_t: Tensor = wave_empirical_risk(x_reconstructed_t, record)
+                source_loss = loss_function(
+                    record, x_t, mu_x, log_var_x, mu_z, log_var_z
+                )
+                target_loss: Tensor = wave_empirical_risk(x_t.squeeze(), record)
 
                 # Compute source + target loss
                 wave_empirical_risk_bound: Tensor = compute_risk_with_bound(
-                    loss, loss_t
+                    source_loss, target_loss
                 )
 
                 # Backprop
-                robust_optimizer.zero_grad()
-                # loss.backward()
-                wave_empirical_risk_bound.backward()
-                robust_optimizer.step()
+                source_optimizer.zero_grad()
+                wave_empirical_risk_bound.backward(retain_graph=True)
+                source_optimizer.step()
                 with torch.no_grad():
                     for (
                         source_params,
                         target_params,
                     ) in zip(source_model.parameters(), target_model.parameters()):
-                        source_params.data.mul_(TARGET_DECAY)
-                        torch.add(
-                            source_params.data,
-                            target_params.data,
-                            alpha=(1 - TARGET_DECAY),
-                            out=source_params.data,
+                        target_params.data = TARGET_DECAY * target_params.data + (
+                            (1 - TARGET_DECAY) * source_params.data
                         )
-        loop.set_postfix(loss=loss.item())
-        avg_loss += loss.item()
+
+        loop.set_postfix(loss=target_loss.item())
+        avg_loss += target_loss.item()
         if counter % 100 == 0:
             print(
                 "Epoch {}......Step: {}/{}....... Average Loss for Epoch: {}".format(
