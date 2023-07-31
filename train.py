@@ -76,7 +76,10 @@ for epoch in range(1, NUM_EPOCHS + 1):
     start_time = time.process_time()
     for counter, data in loop:
         batch = torch.as_tensor(data, device=DEVICE)
+        window_counter = 0
         for window in batch:
+            window_counter += 1
+            window_loss = 0
             for record in window:
                 z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
                 z_t, mu_z_t, log_var_z_t, x_t_t, mu_x_t, log_var_x_t = source_model(
@@ -93,6 +96,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
                     source_loss, target_loss
                 )
 
+                window_loss += wave_empirical_risk_bound
                 # Backprop
                 source_optimizer.zero_grad()
                 wave_empirical_risk_bound.backward(retain_graph=True)
@@ -105,6 +109,20 @@ for epoch in range(1, NUM_EPOCHS + 1):
                         target_params.data = TARGET_DECAY * target_params.data + (
                             (1 - TARGET_DECAY) * source_params.data
                         )
+
+                del z, mu_z, log_var_z, x_t, mu_x, log_var_x
+                del z_t, mu_z_t, log_var_z_t, x_t_t, mu_x_t, log_var_x_t
+
+                print(
+                    "Epoch {}......Step: {}/{}...Window: {} %.... Average Loss for Epoch: {} for batch: {}".format(
+                        epoch,
+                        (counter + 1),
+                        (window_counter / BATCH_SIZE) * 100,
+                        len(train_loader),
+                        avg_loss / (counter + 1),
+                        window_loss / WINDOW_LENGTH,
+                    )
+                )
 
         loop.set_postfix(loss=target_loss.item())
         avg_loss += target_loss.item()
