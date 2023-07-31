@@ -84,9 +84,11 @@ for epoch in range(1, NUM_EPOCHS + 1):
         # batch = torch.as_tensor(data, device=DEVICE)
         window_counter = 0
         for window in batch:
+            window = window.to(DEVICE)  # Move window tensor to the right device
             window_counter += 1
             window_loss = 0
             for record in window:
+                record = record.to(DEVICE)  # Move record tensor to the right device
                 print(record)
                 z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
                 source_model(record)
