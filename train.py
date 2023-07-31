@@ -16,8 +16,8 @@ else:
     DEVICE = torch.device("cpu")
 
 # DEVICE = torch.device("mps") if  else  if  else "cpu")
-WINDOW_LENGTH = 100  # h
-BATCH_SIZE = 50  # h
+WINDOW_LENGTH = 30  # h
+BATCH_SIZE = 100  # h
 LR_RATE = 10e-3  # h
 NUM_EPOCHS = 3  # range: any
 TEST_DATA = 0.3  # 30% range: 10-100%
@@ -46,17 +46,17 @@ train_loader = DataLoader(
     dataset=data, batch_size=BATCH_SIZE, num_workers=4, pin_memory=True
 )
 # Use nn.DataParallel to wrap your model
-target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
-if torch.cuda.is_available() and torch.cuda.device_count() > 1:
-    print("Using DataParallel arch")
-    target_model = nn.DataParallel(target_model)
+target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
+# if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+#     print("Using DataParallel arch")
+#     target_model = nn.DataParallel(target_model)
 
-source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE)
-if torch.cuda.is_available() and torch.cuda.device_count() > 1:
-    source_model = nn.DataParallel(source_model)
+source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
+# if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+# source_model = nn.DataParallel(source_model)
 
-target_model.to(DEVICE)
-source_model.to(DEVICE)
+# target_model.to(DEVICE)
+# source_model.to(DEVICE)
 
 target_optimizer = optim.Adam(target_model.parameters(), lr=LR_RATE)
 source_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
@@ -82,24 +82,18 @@ for epoch in range(1, NUM_EPOCHS + 1):
     loop = tqdm(enumerate(train_loader))
     start_time = time.process_time()
     for counter, batch in loop:
-        # batch = torch.as_tensor(data, device=DEVICE)
+        batch = torch.as_tensor(data, device=DEVICE)
         window_counter = 0
         for window in batch:
-            window = window.to(DEVICE)  # Move window tensor to the right device
+            # window = window.to(DEVICE)  # Move window tensor to the right device
             window_counter += 1
             window_loss = 0
+            print("We are in epoch {} window: {}".format(counter + 1, window_counter))
             for record in window:
-                record = record.to(DEVICE)  # Move record tensor to the right device
+                # record = record.to(DEVICE)  # Move record tensor to the right device
+                print("record from window: ", record)
                 z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
                 source_model(record)
-
-                # transfer all tesnors to one device
-                record.to(DEVICE)
-                x_t.to(DEVICE)
-                mu_x.to(DEVICE)
-                log_var_x.to(DEVICE)
-                mu_z.to(DEVICE)
-                log_var_z.to(DEVICE)
 
                 source_loss = loss_function(
                     record, x_t, mu_x, log_var_x, mu_z, log_var_z
