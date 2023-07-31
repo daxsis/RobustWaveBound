@@ -73,8 +73,8 @@ class VariationalAutoEncoder(nn.Module):
         self.T_theta = nn.Linear(self.z_dim, self.z_dim, bias=False).to(self.device)
         self.O_theta = nn.Linear(self.z_dim, self.z_dim, bias=False).to(self.device)
         # Initialize transition and observation noise for LG-SSM
-        self.transition_noise = torch.distributions.Normal(0, 1).to(self.device)
-        self.observation_noise = torch.distributions.Normal(0, 1).to(self.device)
+        self.transition_noise = torch.distributions.Normal(0, 1)
+        self.observation_noise = torch.distributions.Normal(0, 1)
 
         self.h_pnet = torch.randn(1, self.h_dim, device=self.device)
         self.h_for_p_x = nn.GRUCell(input_size=self.z_dim, hidden_size=self.h_dim).to(
