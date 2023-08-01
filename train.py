@@ -40,7 +40,7 @@ WAVEBOUND_ERROR_DEVIATION = 1e-4  # h range: idk
 (x_train, _), (x_test, y_test) = get_data(
     "machine-1-1", None, None, train_start=0, test_start=0
 )
-data = Dataset(data=x_train)
+data = Dataset(x_train)
 train_loader = DataLoader(dataset=data, batch_size=BATCH_SIZE)
 # if torch.cuda.is_available() and torch.cuda.device_count() > 2:
 #     DEVICE_SOURCE = torch.device("cuda:0")
