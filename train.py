@@ -70,13 +70,25 @@ for epoch in range(1, NUM_EPOCHS + 1):
     start_time = time.process_time()
     for counter, data in loop:
         batch = torch.as_tensor(data, device=DEVICE)
-        window_counter = 0
-        for window in batch:
-            window_counter += 1
+        batch_counter = 0
+        window_time = 0
+        window_times = []
+        for window in batch:  # BATCH_SIZE
+            batch_counter += 1
             window_loss = 0
-            print("We are in epoch {} window: {}".format(counter + 1, window_counter))
-            for record in window:
-                print("record from window: ", record)
+            window_time = time.process_time()
+            print(
+                "We are {} out of {} records in batch #{} in {}s. Total time in batch {}s".format(
+                    batch_counter,
+                    BATCH_SIZE,
+                    counter + 1,
+                    window_time,
+                    str(sum(window_times)),
+                )
+            )
+
+            record_times = []
+            for record in window:  # WINDOW_LENGTH
                 z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
                 source_model(record)
 
@@ -93,8 +105,10 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 window_loss += wave_empirical_risk_bound
                 # Backprop
                 source_optimizer.zero_grad()
+                # target_optimizer.zero_grad()
                 wave_empirical_risk_bound.backward(retain_graph=True)
                 source_optimizer.step()
+                # target_optimizer.step()
                 with torch.no_grad():
                     for (
                         source_params,
@@ -106,17 +120,21 @@ for epoch in range(1, NUM_EPOCHS + 1):
 
                 del z, mu_z, log_var_z, x_t, mu_x, log_var_x
 
-                if window_counter % 50 == 0:
+                if (
+                    batch_counter % (WINDOW_LENGTH / 10) == 0
+                ):  # print every 10 recs in window
                     print(
-                        "Epoch {}......Step: {}/{}...Window: {} %.... Average Loss for Epoch: {} for batch: {}".format(
+                        "Epoch {}......Batch: {}/{}...Window: {} %.... Average Loss For Window: {}".format(
                             epoch,
                             (counter + 1),
                             len(train_loader),
-                            (window_counter / BATCH_SIZE) * 100,
-                            avg_loss / (counter + 1),
+                            (batch_counter / BATCH_SIZE) * 100,
                             window_loss / WINDOW_LENGTH,
                         )
                     )
+
+            window_time = time.process_time() - window_time
+            window_times.append(window_time)
 
         loop.set_postfix(loss=target_loss.item())
         avg_loss += target_loss.item()
