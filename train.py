@@ -144,9 +144,9 @@ for epoch in range(1, NUM_EPOCHS + 1):
 
         loop.set_postfix(loss=target_loss.item())
         avg_loss += target_loss.item()
-        if counter % 100 == 0:
+        if counter % 10 == 0:
             print(
-                "Epoch {}......Step: {}/{}....... Average Loss for Epoch: {}".format(
+                "\nEpoch {}......Step: {}/{}....... Average Loss for Epoch: {}".format(
                     epoch, (counter + 1), len(train_loader), avg_loss / (counter + 1)
                 )
             )
