@@ -42,22 +42,18 @@ WAVEBOUND_ERROR_DEVIATION = 1e-4  # h range: idk
 )
 data = Dataset(data=x_train)
 train_loader = DataLoader(dataset=data, batch_size=BATCH_SIZE)
-if torch.cuda.is_available() and torch.cuda.device_count() > 2:
-    DEVICE_SOURCE = torch.device("cuda:0")
-    DEVICE_TARGET = torch.device("cuda:1")
-    target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(
-        DEVICE_TARGET
-    )
-    source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(
-        DEVICE_SOURCE
-    )
-else:
-    target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(
-        DEVICE
-    )
-    source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(
-        DEVICE
-    )
+# if torch.cuda.is_available() and torch.cuda.device_count() > 2:
+#     DEVICE_SOURCE = torch.device("cuda:0")
+#     DEVICE_TARGET = torch.device("cuda:1")
+#     target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(
+#         DEVICE_TARGET
+#     )
+#     source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(
+#         DEVICE_SOURCE
+#     )
+# else:
+target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
+source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
 target_optimizer = optim.Adam(target_model.parameters(), lr=LR_RATE)
 source_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
 
