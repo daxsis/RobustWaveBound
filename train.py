@@ -136,7 +136,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
                         (counter + 1),
                         len(train_loader),
                         (batch_counter / BATCH_SIZE) * 100,
-                        sum(batch_loss) / BATCH_SIZE,
+                        sum(batch_loss) / batch_counter,
                         record_loss,
                         str(sum(record_times)),
                     )
