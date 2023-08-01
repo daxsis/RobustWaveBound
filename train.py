@@ -123,8 +123,8 @@ for epoch in range(1, NUM_EPOCHS + 1):
                     source_params,
                     target_params,
                 ) in zip(source_model.parameters(), target_model.parameters()):
-                    target_params.data = TARGET_DECAY * target_params.data + (
-                        (1 - TARGET_DECAY) * source_params.data
+                    target_params.data = TARGET_DECAY * target_params.data.clone() + (
+                        (1 - TARGET_DECAY) * source_params.data.clone()
                     )
 
             del z, mu_z, log_var_z, x_t, mu_x, log_var_x
