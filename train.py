@@ -88,15 +88,15 @@ for epoch in range(1, NUM_EPOCHS + 1):
         for record in batch:  # BATCH_SIZE
             batch_counter += 1
             record_time = time.process_time()
-            print(
-                "We are {} out of {} records in batch #{} in {}s. Total time in batch so far {}s".format(
-                    batch_counter,
-                    BATCH_SIZE,
-                    counter + 1,
-                    record_time,
-                    str(sum(record_times)),
-                )
-            )
+            # print(
+            #     "We are {} out of {} records in batch #{} in {}s. Total time in batch so far {}s".format(
+            #         batch_counter,
+            #         BATCH_SIZE,
+            #         counter + 1,
+            #         record_time,
+            #         str(sum(record_times)),
+            #     )
+            # )
 
             z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
             source_model(record)
@@ -130,13 +130,14 @@ for epoch in range(1, NUM_EPOCHS + 1):
 
             if batch_counter % (len(batch) / 10) == 0:  # print every 10 recs in window
                 print(
-                    "Epoch {}......Batch: {}/{}...{} %.... Average Loss For Batch: {}, Record Loss {}".format(
+                    "Epoch {}......Batch: {}/{}...{} %.... Average Loss For Batch: {}, Record Loss {} in {}s".format(
                         epoch,
                         (counter + 1),
                         len(train_loader),
                         (batch_counter / BATCH_SIZE) * 100,
                         sum(batch_loss) / BATCH_SIZE,
                         record_loss,
+                        str(sum(record_times)),
                     )
                 )
 
