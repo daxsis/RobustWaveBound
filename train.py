@@ -148,8 +148,8 @@ for epoch in range(1, NUM_EPOCHS + 1):
     current_time = time.process_time()
     epoch_times.append(current_time - start_time)
     print(
-        "Epoch {}/{} Done, Total Loss: {}".format(
-            epoch, NUM_EPOCHS, avg_loss / len(train_loader)
+        "Epoch {}/{} Done, Total Loss: {}, Done in {}s".format(
+            epoch, NUM_EPOCHS, avg_loss / len(train_loader), current_time - start_time
         )
     )
 
