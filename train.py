@@ -128,6 +128,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
 
             del z, mu_z, log_var_z, x_t, mu_x, log_var_x
 
+            record_times.append(time.process_time() - record_time)
             if batch_counter % (len(batch) / 10) == 0:  # print every 10 recs in window
                 print(
                     "Epoch {}......Batch: {}/{}...{} %.... Average Loss For Batch: {}, Record Loss {} in {}s".format(
