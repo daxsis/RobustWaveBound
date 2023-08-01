@@ -113,10 +113,11 @@ for epoch in range(1, NUM_EPOCHS + 1):
             record_loss += wave_empirical_risk_bound
             # Backprop
             source_optimizer.zero_grad()
-            # target_optimizer.zero_grad()
-            wave_empirical_risk_bound.backward(retain_graph=True)
+            source_loss.backward(retain_graph=True)
             source_optimizer.step()
-            # target_optimizer.step()
+            target_optimizer.zero_grad()
+            wave_empirical_risk_bound.backward(retain_graph=True)
+            target_optimizer.step()
             with torch.no_grad():
                 for (
                     source_params,
