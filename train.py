@@ -128,16 +128,14 @@ for epoch in range(1, NUM_EPOCHS + 1):
 
             del z, mu_z, log_var_z, x_t, mu_x, log_var_x
 
-            if (
-                batch_counter % (batch.size() / 10) == 0
-            ):  # print every 10 recs in window
+            if batch_counter % (len(batch) / 10) == 0:  # print every 10 recs in window
                 print(
                     "Epoch {}......Batch: {}/{}...{} %.... Average Loss For Batch: {}, Record Loss {}".format(
                         epoch,
                         (counter + 1),
                         len(train_loader),
                         (batch_counter / BATCH_SIZE) * 100,
-                        sum(record_loss) / BATCH_SIZE,
+                        sum(batch_loss) / BATCH_SIZE,
                         record_loss,
                     )
                 )

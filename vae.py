@@ -128,7 +128,6 @@ class VariationalAutoEncoder(nn.Module):
         return mu_x, log_var_x
 
     def forward(self, x):
-        print("from forward: ", x)
         mu_z, log_var_z = self.encode(x)
         z0: Tensor = self.reparametrize(mu_z, log_var_z)  # sample from prior q(z|x)
         # Transform through planar normalizing flow
