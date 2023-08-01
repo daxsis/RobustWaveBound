@@ -2,7 +2,8 @@ import time
 import torch
 from tqdm import tqdm
 from torch import Tensor, nn, optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
+from dataset import Dataset
 from utils import get_data
 from vae import VariationalAutoEncoder, loss_function
 
