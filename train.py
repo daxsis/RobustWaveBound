@@ -2,8 +2,7 @@ import time
 import torch
 from tqdm import tqdm
 from torch import Tensor, nn, optim
-from torch.utils.data import DataLoader
-from dataset import Dataset
+from torch.utils.data import DataLoader, Dataset
 from utils import get_data
 from vae import VariationalAutoEncoder, loss_function
 
@@ -41,10 +40,24 @@ WAVEBOUND_ERROR_DEVIATION = 1e-4  # h range: idk
 (x_train, _), (x_test, y_test) = get_data(
     "machine-1-1", None, None, train_start=0, test_start=0
 )
-data = Dataset(data=x_train, window=WINDOW_LENGTH)
+data = Dataset(data=x_train)
 train_loader = DataLoader(dataset=data, batch_size=BATCH_SIZE)
-target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
-source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
+if torch.cuda.is_available() and torch.cuda.device_count() > 2:
+    DEVICE_SOURCE = torch.device("cuda:0")
+    DEVICE_TARGET = torch.device("cuda:1")
+    target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(
+        DEVICE_TARGET
+    )
+    source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(
+        DEVICE_SOURCE
+    )
+else:
+    target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(
+        DEVICE
+    )
+    source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(
+        DEVICE
+    )
 target_optimizer = optim.Adam(target_model.parameters(), lr=LR_RATE)
 source_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
 
@@ -71,70 +84,66 @@ for epoch in range(1, NUM_EPOCHS + 1):
     for counter, data in loop:
         batch = torch.as_tensor(data, device=DEVICE)
         batch_counter = 0
-        window_time = 0
-        window_times = []
-        for window in batch:  # BATCH_SIZE
+        record_time = 0
+        record_times = []
+        record_loss = 0
+        batch_loss = []
+        for record in batch:  # BATCH_SIZE
             batch_counter += 1
-            window_loss = 0
-            window_time = time.process_time()
+            record_time = time.process_time()
             print(
-                "We are {} out of {} records in batch #{} in {}s. Total time in batch {}s".format(
+                "We are {} out of {} records in batch #{} in {}s. Total time in batch so far {}s".format(
                     batch_counter,
                     BATCH_SIZE,
                     counter + 1,
-                    window_time,
-                    str(sum(window_times)),
+                    record_time,
+                    str(sum(record_times)),
                 )
             )
 
-            record_times = []
-            for record in window:  # WINDOW_LENGTH
-                z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
-                source_model(record)
+            z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
+            source_model(record)
 
-                source_loss = loss_function(
-                    record, x_t, mu_x, log_var_x, mu_z, log_var_z
-                )
-                target_loss: Tensor = wave_empirical_risk(x_t.squeeze(), record)
+            source_loss = loss_function(record, x_t, mu_x, log_var_x, mu_z, log_var_z)
+            target_loss: Tensor = wave_empirical_risk(x_t.squeeze(), record)
 
-                # Compute source + target loss
-                wave_empirical_risk_bound: Tensor = compute_risk_with_bound(
-                    source_loss, target_loss
-                )
+            # Compute source + target loss
+            wave_empirical_risk_bound: Tensor = compute_risk_with_bound(
+                source_loss, target_loss
+            )
+            batch_loss.append(wave_empirical_risk_bound)
 
-                window_loss += wave_empirical_risk_bound
-                # Backprop
-                source_optimizer.zero_grad()
-                # target_optimizer.zero_grad()
-                wave_empirical_risk_bound.backward(retain_graph=True)
-                source_optimizer.step()
-                # target_optimizer.step()
-                with torch.no_grad():
-                    for (
-                        source_params,
-                        target_params,
-                    ) in zip(source_model.parameters(), target_model.parameters()):
-                        target_params.data = TARGET_DECAY * target_params.data + (
-                            (1 - TARGET_DECAY) * source_params.data
-                        )
-
-                del z, mu_z, log_var_z, x_t, mu_x, log_var_x
-
-                if (
-                    batch_counter % (WINDOW_LENGTH / 10) == 0
-                ):  # print every 10 recs in window
-                    print(
-                        "Epoch {}......Batch: {}/{}...Window: {} %.... Average Loss For Window: {}".format(
-                            epoch,
-                            (counter + 1),
-                            len(train_loader),
-                            (batch_counter / BATCH_SIZE) * 100,
-                            window_loss / WINDOW_LENGTH,
-                        )
+            record_loss += wave_empirical_risk_bound
+            # Backprop
+            source_optimizer.zero_grad()
+            # target_optimizer.zero_grad()
+            wave_empirical_risk_bound.backward(retain_graph=True)
+            source_optimizer.step()
+            # target_optimizer.step()
+            with torch.no_grad():
+                for (
+                    source_params,
+                    target_params,
+                ) in zip(source_model.parameters(), target_model.parameters()):
+                    target_params.data = TARGET_DECAY * target_params.data + (
+                        (1 - TARGET_DECAY) * source_params.data
                     )
 
-            window_time = time.process_time() - window_time
-            window_times.append(window_time)
+            del z, mu_z, log_var_z, x_t, mu_x, log_var_x
+
+            if (
+                batch_counter % (batch.size() / 10) == 0
+            ):  # print every 10 recs in window
+                print(
+                    "Epoch {}......Batch: {}/{}...{} %.... Average Loss For Batch: {}, Record Loss {}".format(
+                        epoch,
+                        (counter + 1),
+                        len(train_loader),
+                        (batch_counter / BATCH_SIZE) * 100,
+                        sum(record_loss) / BATCH_SIZE,
+                        record_loss,
+                    )
+                )
 
         loop.set_postfix(loss=target_loss.item())
         avg_loss += target_loss.item()
