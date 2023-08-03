@@ -105,7 +105,7 @@ class VariationalAutoEncoder(nn.Module):
     # Sample from Gaussian
     def reparametrize(self, mu_z: Tensor, log_var_z: Tensor) -> Tensor:
         std_z = torch.exp(0.5 * log_var_z)
-        epsilon = torch.randn(*std_z.shape).to(std_z.device)
+        epsilon = torch.randn_like(std_z)
 
         z = mu_z + epsilon * std_z
         return z

@@ -16,7 +16,6 @@ class PlanarFlow(nn.Module):
         self.model = nn.Sequential(*self.layers)
 
     def forward(self, z: Tensor) -> Tuple[Tensor, float]:
-        z = z.clone()
         log_det_J = 0
 
         for layer in self.layers:
