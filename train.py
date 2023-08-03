@@ -85,12 +85,12 @@ for epoch in range(1, NUM_EPOCHS + 1):
             s_z, s_mu_z, s_log_var_z, s_x_t, s_mu_x, s_log_var_x = source_model(record)
 
             source_optimizer.zero_grad()
-            source_loss = loss_function(record, x_t, mu_x, log_var_x)
+            source_loss = loss_function(record, x_t, mu_x, log_var_x, z)
             source_loss.backward(inputs=list(source_model.parameters()))
             source_optimizer.step()
 
             target_optimizer.zero_grad()
-            target_loss = loss_function(record, s_x_t, s_mu_x, s_log_var_x)
+            target_loss = loss_function(record, s_x_t, s_mu_x, s_log_var_x, z)
             target_loss.backward(inputs=list(target_model.parameters()))
             target_optimizer.step()
             ema.update()

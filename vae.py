@@ -142,16 +142,23 @@ class VariationalAutoEncoder(nn.Module):
         return torch.zeros(1, x.size(), self.h_dim, device=x.device)
 
 
-def loss_function(x, x_t, mu_x, log_var_x):
+def loss_function(x, x_t, mu_x, logvar_x, z):
     reconstruction_error = torch.sum((x_t - x) ** 2, dim=[1])
 
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 * torch.sum(1 + log_var_x - mu_x.pow(2) - log_var_x.exp())
+    L = mu_x.size(0)
+    # Assuming p_theta(x_t|z_t) is Gaussian with unit variance
+    log_likelihood = -0.5 * (x - x_t).pow(2).sum()
 
-    return reconstruction_error + KLD
+    # Assuming p_theta(z_t) is standard Gaussian
+    log_prior = -0.5 * z.pow(2).sum()
+
+    # Assuming q_phi(z_t|x_t) is Gaussian with mean and logvar output by encoder network
+    log_q = -0.5 * (1 + logvar_x - mu_x.pow(2) - logvar_x.exp()).sum()
+
+    # Calculate final KL loss
+    loss = (log_likelihood + log_prior - log_q) / L
+
+    return reconstruction_error - loss
 
 
 if __name__ == "__main__":
