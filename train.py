@@ -1,3 +1,4 @@
+import sys
 import time
 import torch
 from tqdm import tqdm
@@ -9,7 +10,9 @@ from utils import get_data
 from vae import VariationalAutoEncoder, loss_function
 
 # Configuration
-if torch.backends.mps.is_available():
+if sys.argv[1] is not None:
+    DEVICE = sys.argv[1]
+elif torch.backends.mps.is_available():
     DEVICE = torch.device("mps")
 elif torch.cuda.is_available():
     DEVICE = torch.device("cuda")
