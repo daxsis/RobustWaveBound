@@ -4,6 +4,7 @@ from tqdm import tqdm
 from torch import Tensor, nn, optim
 from torch.utils.data import DataLoader
 from dataset import Dataset
+from ema import EMA
 from utils import get_data
 from vae import VariationalAutoEncoder, loss_function
 
@@ -54,6 +55,7 @@ train_loader = DataLoader(dataset=data, batch_size=BATCH_SIZE)
 #     )
 # else:
 target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
+ema = EMA(target_model, TARGET_DECAY)
 source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
 target_optimizer = optim.Adam(target_model.parameters(), lr=LR_RATE)
 source_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
@@ -99,35 +101,42 @@ for epoch in range(1, NUM_EPOCHS + 1):
             # )
 
             z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
-            source_model(record)
+            s_z, s_mu_z, s_log_var_z, s_x_t, s_mu_x, s_log_var_x = source_model(record)
 
+            source_optimizer.zero_grad()
             source_loss = loss_function(record, x_t, mu_x, log_var_x, mu_z, log_var_z)
-            target_loss: Tensor = wave_empirical_risk(x_t.squeeze(), record)
+            source_loss.backward(inputs=list(source_model.parameters()))
+            source_optimizer.step()
+            batch_loss.append(source_loss)  # save for log
+            record_loss += source_loss
+
+            target_optimizer.zero_grad()
+            target_loss = loss_function(
+                record, s_x_t, s_mu_x, s_log_var_x, s_mu_z, s_log_var_z
+            )
+            # target_loss: Tensor = wave_empirical_risk(x_t.squeeze(), record)
+            target_loss.backward(inputs=list(target_model.parameters()))
+            target_optimizer.step()
+            ema.update()
 
             # Compute source + target loss
-            wave_empirical_risk_bound: Tensor = compute_risk_with_bound(
-                source_loss, target_loss
-            )
-            batch_loss.append(source_loss)
+            # wave_empirical_risk_bound: Tensor = compute_risk_with_bound(
+            #     source_loss, target_loss
+            # )
 
-            record_loss += source_loss
             # Backprop
             with torch.no_grad():
-                wave_empirical_risk_bound.backward(retain_graph=True)
-                target_optimizer.zero_grad()
-                source_optimizer.zero_grad()
-                target_optimizer.step()
-                source_optimizer.step()
+                # Move the in-place operation out of the `with torch.no_grad()` block
+                for source_params, target_params in zip(
+                    source_model.parameters(), target_model.parameters()
+                ):
+                    target_params.data = TARGET_DECAY * target_params.data.clone() + (
+                        (1 - TARGET_DECAY) * source_params.data.clone()
+                    )
 
-            # Move the in-place operation out of the `with torch.no_grad()` block
-            for source_params, target_params in zip(
-                source_model.parameters(), target_model.parameters()
-            ):
-                target_params.data = TARGET_DECAY * target_params.data.clone() + (
-                    (1 - TARGET_DECAY) * source_params.data.clone()
-                )
-
-            del z, mu_z, log_var_z, x_t, mu_x, log_var_x
+                # Delete to reduce memory consumption
+                del z, mu_z, log_var_z, x_t, mu_x, log_var_x
+                del s_z, s_mu_z, s_log_var_z, s_x_t, s_mu_x, s_log_var_x
 
             record_times.append(time.process_time() - record_time)
             # if batch_counter % (len(batch) / 10) == 0:  # print every 10 recs in window

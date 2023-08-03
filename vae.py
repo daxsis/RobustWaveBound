@@ -38,7 +38,7 @@ class VariationalAutoEncoder(nn.Module):
         super(VariationalAutoEncoder, self).__init__()
         self.z_dim = z_dim
         # Define epsilon for numerical stability
-        self.epsilon = nn.Parameter(torch.tensor(epsilon), requires_grad=False)
+        self.epsilon = torch.tensor(epsilon)
         self.input_dim = input_dim
         self.seq_length = seq_len
         self.planar_length = planar_length
