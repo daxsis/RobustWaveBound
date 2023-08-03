@@ -10,7 +10,7 @@ from utils import get_data
 from vae import VariationalAutoEncoder, loss_function
 
 # Configuration
-if sys.argv[1] is not None:
+if len(sys.argv) > 1 and sys.argv[1] is not None:
     DEVICE = sys.argv[1]
 elif torch.backends.mps.is_available():
     DEVICE = torch.device("mps")
@@ -59,6 +59,7 @@ train_loader = DataLoader(dataset=data, batch_size=BATCH_SIZE)
 # else:
 target_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
 ema = EMA(target_model, TARGET_DECAY)
+ema.register()
 source_model = VariationalAutoEncoder(X_DIM, RNN_H_DIM, Z_DIM, device=DEVICE).to(DEVICE)
 target_optimizer = optim.Adam(target_model.parameters(), lr=LR_RATE)
 source_optimizer = optim.Adam(source_model.parameters(), lr=LR_RATE)
@@ -121,7 +122,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
             target_loss.backward(inputs=list(target_model.parameters()))
             target_optimizer.step()
             ema.update()
-
+            ema.apply_shadow()
             # Compute source + target loss
             # wave_empirical_risk_bound: Tensor = compute_risk_with_bound(
             #     source_loss, target_loss
@@ -133,8 +134,8 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 for source_params, target_params in zip(
                     source_model.parameters(), target_model.parameters()
                 ):
-                    target_params.data = TARGET_DECAY * target_params.data.clone() + (
-                        (1 - TARGET_DECAY) * source_params.data.clone()
+                    target_params.data = TARGET_DECAY * target_params.data + (
+                        (1 - TARGET_DECAY) * source_params.data
                     )
 
                 # Delete to reduce memory consumption
@@ -166,6 +167,8 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 sum(record_times),
             )
         )
+
+        del batch
 
     current_time = time.process_time()
     epoch_times.append(current_time - start_time)
