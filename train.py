@@ -168,7 +168,8 @@ for epoch in range(1, NUM_EPOCHS + 1):
             )
         )
 
-        del batch
+        batch.detach()
+        torch.cuda.empty_cache()  # try empty cache
 
     current_time = time.process_time()
     epoch_times.append(current_time - start_time)
