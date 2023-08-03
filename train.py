@@ -68,16 +68,6 @@ epoch_times = []
 avg_loss = 0
 loss_stats = {"train": [], "val": []}  # for early stop
 
-
-def wave_empirical_risk(outputs, labes):
-    return nn.MSELoss()(outputs, labes)
-
-
-def compute_risk_with_bound(source_network, target_network):
-    abs_diff = torch.abs(source_network - (target_network - WAVEBOUND_ERROR_DEVIATION))
-    return abs_diff + (target_network - WAVEBOUND_ERROR_DEVIATION)
-
-
 target_model.train()
 source_model.train()
 
@@ -86,47 +76,25 @@ for epoch in range(1, NUM_EPOCHS + 1):
     start_time = time.process_time()
     for counter, data in loop:
         batch = torch.as_tensor(data, device=DEVICE)
-        batch_counter = 0
         record_time = 0
         record_times = []
-        record_loss = 0
-        batch_loss = []
         for record in batch:  # BATCH_SIZE
-            batch_counter += 1
             record_time = time.process_time()
-            # print(
-            #     "We are {} out of {} records in batch #{} in {}s. Total time in batch so far {}s".format(
-            #         batch_counter,
-            #         BATCH_SIZE,
-            #         counter + 1,
-            #         record_time,
-            #         str(sum(record_times)),
-            #     )
-            # )
 
             z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
             s_z, s_mu_z, s_log_var_z, s_x_t, s_mu_x, s_log_var_x = source_model(record)
 
             source_optimizer.zero_grad()
-            source_loss = loss_function(record, x_t, mu_x, log_var_x, mu_z, log_var_z)
+            source_loss = loss_function(record, x_t, mu_x, log_var_x)
             source_loss.backward(inputs=list(source_model.parameters()))
             source_optimizer.step()
-            batch_loss.append(source_loss)  # save for log
-            record_loss += source_loss
 
             target_optimizer.zero_grad()
-            target_loss = loss_function(
-                record, s_x_t, s_mu_x, s_log_var_x, s_mu_z, s_log_var_z
-            )
-            # target_loss: Tensor = wave_empirical_risk(x_t.squeeze(), record)
+            target_loss = loss_function(record, s_x_t, s_mu_x, s_log_var_x)
             target_loss.backward(inputs=list(target_model.parameters()))
             target_optimizer.step()
             ema.update()
             ema.apply_shadow()
-            # Compute source + target loss
-            # wave_empirical_risk_bound: Tensor = compute_risk_with_bound(
-            #     source_loss, target_loss
-            # )
 
             # Backprop
             with torch.no_grad():
@@ -134,8 +102,9 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 for source_params, target_params in zip(
                     source_model.parameters(), target_model.parameters()
                 ):
-                    target_params.data = TARGET_DECAY * target_params.data + (
-                        (1 - TARGET_DECAY) * source_params.data
+                    target_params.data = (
+                        TARGET_DECAY * target_params.data
+                        + (1 - TARGET_DECAY) * source_params.data
                     )
 
                 # Delete to reduce memory consumption
@@ -143,23 +112,11 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 del s_z, s_mu_z, s_log_var_z, s_x_t, s_mu_x, s_log_var_x
 
             record_times.append(time.process_time() - record_time)
-            # if batch_counter % (len(batch) / 10) == 0:  # print every 10 recs in window
-            # print(
-            #     "\tEpoch {}......Batch: {}/{}...{} %.... Average Loss For Batch: {}, Record Loss {} in {}s".format(
-            #         epoch,
-            #         (counter + 1),
-            #         len(train_loader),
-            #         (batch_counter / BATCH_SIZE) * 100,
-            #         sum(batch_loss) / batch_counter,
-            #         record_loss,
-            #         str(sum(record_times)),
-            #     )
-            # )
 
-        loop.set_postfix(target_loss=target_loss.item())
-        avg_loss += source_loss.item()
+        loop.set_postfix(source_loss=source_loss.item())
+        avg_loss += target_loss.item()
         print(
-            "\nEpoch {}......Step: {}/{}....... Average Loss for Epoch: {} Done in {:.2f}s".format(
+            "\nEpoch {} | Step: {}/{} | Average Loss Epoch: {} | {:.2f}s".format(
                 epoch,
                 (counter + 1),
                 len(train_loader),
@@ -168,6 +125,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
             )
         )
 
+        del source_loss, target_loss
         batch.detach()
         torch.cuda.empty_cache()  # try empty cache
 

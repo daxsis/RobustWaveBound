@@ -1,12 +1,4 @@
-import torch
 from torch import nn
-
-from copy import deepcopy
-from collections import OrderedDict
-from sys import stderr
-
-# for type hint
-from torch import Tensor
 
 
 class EMA:
