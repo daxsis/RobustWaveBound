@@ -156,8 +156,8 @@ for epoch in range(1, NUM_EPOCHS + 1):
             #     )
             # )
 
-        loop.set_postfix(loss=target_loss.item())
-        avg_loss += target_loss.item()
+        loop.set_postfix(target_loss=target_loss.item())
+        avg_loss += source_loss.item()
         print(
             "\nEpoch {}......Step: {}/{}....... Average Loss for Epoch: {} Done in {:.2f}s".format(
                 epoch,
