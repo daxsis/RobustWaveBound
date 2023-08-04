@@ -141,6 +141,10 @@ class VariationalAutoEncoder(nn.Module):
 
 
 def loss_function(x: Tensor, x_t: Tensor, mu_x: Tensor, logvar_x: Tensor, z: Tensor):
+    assert torch.all(x >= 0) and torch.all(x <= 1), "Values in x are out of range [0,1]"
+    assert torch.all(x_t >= 0) and torch.all(
+        x_t <= 1
+    ), "Values in x_t are out of range [0,1]"
     recon_loss = nn.functional.binary_cross_entropy(x_t, x, reduction="none").sum(
         -1
     )  # log(p(x|z))
