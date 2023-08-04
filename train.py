@@ -90,7 +90,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
             source_optimizer.step()
 
             target_optimizer.zero_grad()
-            target_loss = loss_function(record, s_x_t, s_mu_x, s_log_var_x, z)
+            target_loss = loss_function(record, s_x_t, s_mu_x, s_log_var_x, s_z)
             target_loss.backward(inputs=list(target_model.parameters()))
             target_optimizer.step()
             ema.update()
