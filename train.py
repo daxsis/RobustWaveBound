@@ -71,7 +71,7 @@ loss_stats = {"train": [], "val": []}  # for early stop
 
 target_model.train()
 source_model.train()
-leakfinder = LeakFinder()
+leakfinder = LeakFinder(DEVICE)
 
 for epoch in range(1, NUM_EPOCHS + 1):
     loop = tqdm(enumerate(train_loader))
