@@ -71,23 +71,31 @@ loss_stats = {"train": [], "val": []}  # for early stop
 
 target_model.train()
 source_model.train()
-leakfinder = LeakFinder(DEVICE)
 
 for epoch in range(1, NUM_EPOCHS + 1):
     loop = tqdm(enumerate(train_loader))
     start_time = time.process_time()
     for counter, data in loop:
         batch = torch.as_tensor(data, device=DEVICE)
-        leakfinder.set_batch(counter)
+        print(
+            torch.cuda.memory_allocated(DEVICE)
+            / torch.cuda.max_memory_allocated(DEVICE)
+        )
         record_time = 0
         record_times = []
         for record in batch:  # BATCH_SIZE
             record_time = time.process_time()
-            leakfinder.get_cuda_perc()
             x_t, z, mu_z, logvar_z = target_model(record)
-            leakfinder.get_cuda_perc()
+            print(
+                torch.cuda.memory_allocated(DEVICE)
+                / torch.cuda.max_memory_allocated(DEVICE)
+            )
+
             s_x_t, s_z, s_mu_z, s_logvar_z = source_model(record)
-            leakfinder.get_cuda_perc()
+            print(
+                torch.cuda.memory_allocated(DEVICE)
+                / torch.cuda.max_memory_allocated(DEVICE)
+            )
 
             source_optimizer.zero_grad()
             source_loss = loss_function(
@@ -99,11 +107,20 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 source_model,
                 L2_REGULARIZATION,
             )
-            leakfinder.get_cuda_perc()
+            print(
+                torch.cuda.memory_allocated(DEVICE)
+                / torch.cuda.max_memory_allocated(DEVICE)
+            )
             source_loss.backward(inputs=list(source_model.parameters()))
-            leakfinder.get_cuda_perc()
+            print(
+                torch.cuda.memory_allocated(DEVICE)
+                / torch.cuda.max_memory_allocated(DEVICE)
+            )
             source_optimizer.step()
-            leakfinder.get_cuda_perc()
+            print(
+                torch.cuda.memory_allocated(DEVICE)
+                / torch.cuda.max_memory_allocated(DEVICE)
+            )
 
             target_optimizer.zero_grad()
             target_loss = loss_function(
@@ -115,18 +132,33 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 target_model,
                 L2_REGULARIZATION,
             )
-            leakfinder.get_cuda_perc()
+            print(
+                torch.cuda.memory_allocated(DEVICE)
+                / torch.cuda.max_memory_allocated(DEVICE)
+            )
             target_loss.backward(inputs=list(target_model.parameters()))
-            leakfinder.get_cuda_perc()
+            print(
+                torch.cuda.memory_allocated(DEVICE)
+                / torch.cuda.max_memory_allocated(DEVICE)
+            )
             target_optimizer.step()
-            leakfinder.get_cuda_perc()
+            print(
+                torch.cuda.memory_allocated(DEVICE)
+                / torch.cuda.max_memory_allocated(DEVICE)
+            )
 
             # Backprop
             with torch.no_grad():
                 ema.update()
-                leakfinder.get_cuda_perc()
+                print(
+                    torch.cuda.memory_allocated(DEVICE)
+                    / torch.cuda.max_memory_allocated(DEVICE)
+                )
                 ema.apply_shadow()
-                leakfinder.get_cuda_perc()
+                print(
+                    torch.cuda.memory_allocated(DEVICE)
+                    / torch.cuda.max_memory_allocated(DEVICE)
+                )
                 # Move the in-place operation out of the `with torch.no_grad()` block
                 for source_params, target_params in zip(
                     source_model.parameters(), target_model.parameters()
@@ -135,17 +167,22 @@ for epoch in range(1, NUM_EPOCHS + 1):
                         TARGET_DECAY * target_params.data
                         + (1 - TARGET_DECAY) * source_params.data
                     )
-                leakfinder.get_cuda_perc()
+                print(
+                    torch.cuda.memory_allocated(DEVICE)
+                    / torch.cuda.max_memory_allocated(DEVICE)
+                )
 
             # Delete to reduce memory consumption
             del record, source_params, target_params
             del x_t, z, mu_z, logvar_z
             del s_x_t, s_z, s_mu_z, s_logvar_z
             record_times.append(time.process_time() - record_time)
-            leakfinder.get_cuda_perc()
+            print(
+                torch.cuda.memory_allocated(DEVICE)
+                / torch.cuda.max_memory_allocated(DEVICE)
+            )
 
         loop.set_postfix(source_loss=source_loss.item())
-        leakfinder.get_cuda_perc()
         avg_loss += target_loss.item()
         print(
             "\nEpoch {} | Step: {}/{} | AvrgEpoch: {} | Batch: {} | {:.2f}s".format(
@@ -160,8 +197,10 @@ for epoch in range(1, NUM_EPOCHS + 1):
 
         del source_loss, target_loss, batch
         torch.cuda.empty_cache()  # try empty cache
-        leakfinder.get_cuda_perc()
-        leakfinder.find_leaks()
+        print(
+            torch.cuda.memory_allocated(DEVICE)
+            / torch.cuda.max_memory_allocated(DEVICE)
+        )
 
     current_time = time.process_time()
     epoch_times.append(current_time - start_time)
