@@ -77,25 +77,12 @@ for epoch in range(1, NUM_EPOCHS + 1):
     start_time = time.process_time()
     for counter, data in loop:
         batch = torch.as_tensor(data, device=DEVICE)
-        print(
-            torch.cuda.memory_allocated(DEVICE)
-            / torch.cuda.max_memory_allocated(DEVICE)
-        )
         record_time = 0
         record_times = []
         for record in batch:  # BATCH_SIZE
             record_time = time.process_time()
             x_t, z, mu_z, logvar_z = target_model(record)
-            print(
-                torch.cuda.memory_allocated(DEVICE)
-                / torch.cuda.max_memory_allocated(DEVICE)
-            )
-
             s_x_t, s_z, s_mu_z, s_logvar_z = source_model(record)
-            print(
-                torch.cuda.memory_allocated(DEVICE)
-                / torch.cuda.max_memory_allocated(DEVICE)
-            )
 
             source_optimizer.zero_grad()
             source_loss = loss_function(
@@ -107,20 +94,8 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 source_model,
                 L2_REGULARIZATION,
             )
-            print(
-                torch.cuda.memory_allocated(DEVICE)
-                / torch.cuda.max_memory_allocated(DEVICE)
-            )
             source_loss.backward(inputs=list(source_model.parameters()))
-            print(
-                torch.cuda.memory_allocated(DEVICE)
-                / torch.cuda.max_memory_allocated(DEVICE)
-            )
             source_optimizer.step()
-            print(
-                torch.cuda.memory_allocated(DEVICE)
-                / torch.cuda.max_memory_allocated(DEVICE)
-            )
 
             target_optimizer.zero_grad()
             target_loss = loss_function(
@@ -132,33 +107,13 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 target_model,
                 L2_REGULARIZATION,
             )
-            print(
-                torch.cuda.memory_allocated(DEVICE)
-                / torch.cuda.max_memory_allocated(DEVICE)
-            )
             target_loss.backward(inputs=list(target_model.parameters()))
-            print(
-                torch.cuda.memory_allocated(DEVICE)
-                / torch.cuda.max_memory_allocated(DEVICE)
-            )
             target_optimizer.step()
-            print(
-                torch.cuda.memory_allocated(DEVICE)
-                / torch.cuda.max_memory_allocated(DEVICE)
-            )
 
             # Backprop
             with torch.no_grad():
                 ema.update()
-                print(
-                    torch.cuda.memory_allocated(DEVICE)
-                    / torch.cuda.max_memory_allocated(DEVICE)
-                )
                 ema.apply_shadow()
-                print(
-                    torch.cuda.memory_allocated(DEVICE)
-                    / torch.cuda.max_memory_allocated(DEVICE)
-                )
                 # Move the in-place operation out of the `with torch.no_grad()` block
                 for source_params, target_params in zip(
                     source_model.parameters(), target_model.parameters()
@@ -167,20 +122,12 @@ for epoch in range(1, NUM_EPOCHS + 1):
                         TARGET_DECAY * target_params.data
                         + (1 - TARGET_DECAY) * source_params.data
                     )
-                print(
-                    torch.cuda.memory_allocated(DEVICE)
-                    / torch.cuda.max_memory_allocated(DEVICE)
-                )
 
             # Delete to reduce memory consumption
             del record, source_params, target_params
             del x_t, z, mu_z, logvar_z
             del s_x_t, s_z, s_mu_z, s_logvar_z
             record_times.append(time.process_time() - record_time)
-            print(
-                torch.cuda.memory_allocated(DEVICE)
-                / torch.cuda.max_memory_allocated(DEVICE)
-            )
 
         loop.set_postfix(source_loss=source_loss.item())
         avg_loss += target_loss.item()
@@ -197,10 +144,6 @@ for epoch in range(1, NUM_EPOCHS + 1):
 
         del source_loss, target_loss, batch
         torch.cuda.empty_cache()  # try empty cache
-        print(
-            torch.cuda.memory_allocated(DEVICE)
-            / torch.cuda.max_memory_allocated(DEVICE)
-        )
 
     current_time = time.process_time()
     epoch_times.append(current_time - start_time)
