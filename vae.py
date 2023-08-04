@@ -139,16 +139,14 @@ class VariationalAutoEncoder(nn.Module):
 
         return x_t, z, mu_z, log_var_z
 
-    def initialize_hidden_state(self, x: Tensor):
-        return torch.zeros(1, x.size(), self.h_dim, device=x.device)
-
 
 def loss_function(x: Tensor, x_t: Tensor, mu_x: Tensor, logvar_x: Tensor, z: Tensor):
     recon_loss = nn.functional.binary_cross_entropy(x_t, x, reduction="none").sum(
         -1
     )  # log(p(x|z))
     prior = torch.distributions.Normal(
-        torch.zeros_like(mu_x), torch.ones_like(mu_x)
+        torch.zeros_like(mu_x, device=x.get_device()),
+        torch.ones_like(mu_x, device=x.get_device()),
     )  # prior p(z)
     log_p_z = prior.log_prob(z).sum(-1)  # log(p(z))
     posterior = torch.distributions.Normal(
