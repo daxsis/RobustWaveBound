@@ -1,3 +1,4 @@
+from typing import Tuple
 import torch
 from torch import Tensor
 from torch import nn
@@ -136,16 +137,14 @@ class VariationalAutoEncoder(nn.Module):
         mu_x, log_var_x = self.decode(z)
         x_t: Tensor = self.reparametrize(mu_x, log_var_x)
 
-        return x_t, z, mu_x, log_var_x
+        return x_t, z, mu_z, log_var_z
 
     def initialize_hidden_state(self, x: Tensor):
         return torch.zeros(1, x.size(), self.h_dim, device=x.device)
 
 
 def loss_function(x: Tensor, x_t: Tensor, mu_x: Tensor, logvar_x: Tensor, z: Tensor):
-    recon_loss = nn.functional.binary_cross_entropy(
-        x_t.squeeze(), x, reduction="none"
-    ).sum(
+    recon_loss = nn.functional.binary_cross_entropy(x_t, x, reduction="none").sum(
         -1
     )  # log(p(x|z))
     prior = torch.distributions.Normal(
