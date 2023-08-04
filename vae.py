@@ -127,7 +127,7 @@ class VariationalAutoEncoder(nn.Module):
 
         return mu_x, log_var_x
 
-    def forward(self, x):
+    def forward(self, x: Tensor):
         mu_z, log_var_z = self.encode(x)
         z0: Tensor = self.reparametrize(mu_z, log_var_z)  # sample from prior q(z|x)
         # Transform through planar normalizing flow
@@ -142,8 +142,10 @@ class VariationalAutoEncoder(nn.Module):
         return torch.zeros(1, x.size(), self.h_dim, device=x.device)
 
 
-def loss_function(x, x_t, mu_x, logvar_x, z):
-    recon_loss = nn.functional.binary_cross_entropy(x_t, x, reduction="none").sum(
+def loss_function(x: Tensor, x_t: Tensor, mu_x: Tensor, logvar_x: Tensor, z: Tensor):
+    recon_loss = nn.functional.binary_cross_entropy(
+        x_t, torch.squeeze(x), reduction="none"
+    ).sum(
         -1
     )  # log(p(x|z))
     prior = torch.dist.Normal(
