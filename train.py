@@ -81,7 +81,6 @@ for epoch in range(1, NUM_EPOCHS + 1):
         batch = torch.as_tensor(data, device=DEVICE)
         record_time = 0
         record_times = []
-        leakfinder.get_cuda_perc()
         for record in batch:  # BATCH_SIZE
             record_time = time.process_time()
             leakfinder.get_cuda_perc()
