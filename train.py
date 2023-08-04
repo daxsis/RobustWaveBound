@@ -81,16 +81,16 @@ for epoch in range(1, NUM_EPOCHS + 1):
         for record in batch:  # BATCH_SIZE
             record_time = time.process_time()
 
-            z, mu_z, log_var_z, x_t, mu_x, log_var_x = target_model(record)
-            s_z, s_mu_z, s_log_var_z, s_x_t, s_mu_x, s_log_var_x = source_model(record)
+            x_t, z, mu_x, logvar_x = target_model(record)
+            s_x_t, s_z, s_mu_x, s_logvar_x = source_model(record)
 
             source_optimizer.zero_grad()
-            source_loss = loss_function(record, x_t, mu_x, log_var_x, z)
+            source_loss = loss_function(record, x_t, mu_x, logvar_x, z)
             source_loss.backward(inputs=list(source_model.parameters()))
             source_optimizer.step()
 
             target_optimizer.zero_grad()
-            target_loss = loss_function(record, s_x_t, s_mu_x, s_log_var_x, s_z)
+            target_loss = loss_function(record, s_x_t, s_mu_x, s_logvar_x, s_z)
             target_loss.backward(inputs=list(target_model.parameters()))
             target_optimizer.step()
             ema.update()
@@ -107,20 +107,20 @@ for epoch in range(1, NUM_EPOCHS + 1):
                         + (1 - TARGET_DECAY) * source_params.data
                     )
 
-                # Delete to reduce memory consumption
-                del z, mu_z, log_var_z, x_t, mu_x, log_var_x
-                del s_z, s_mu_z, s_log_var_z, s_x_t, s_mu_x, s_log_var_x
-
+            # Delete to reduce memory consumption
+            del z, x_t, mu_x
+            del s_z, s_x_t, s_mu_x
             record_times.append(time.process_time() - record_time)
 
         loop.set_postfix(source_loss=source_loss.item())
         avg_loss += target_loss.item()
         print(
-            "\nEpoch {} | Step: {}/{} | Average Loss Epoch: {} | {:.2f}s".format(
+            "\nEpoch {} | Step: {}/{} | Average Loss Epoch: {} | Current: {} | {:.2f}s".format(
                 epoch,
                 (counter + 1),
                 len(train_loader),
                 avg_loss / (counter + 1),
+                target_loss.item(),
                 sum(record_times),
             )
         )
