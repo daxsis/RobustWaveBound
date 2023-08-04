@@ -19,7 +19,11 @@ class LeakFinder:
 
     def get_cuda_perc(self):
         # get the percentage of cuda memory used
-        perc = torch.cuda.memory_allocated() / (torch.cuda.max_memory_allocated())
+        perc = torch.cuda.memory_allocated() / (
+            torch.cuda.max_memory_allocated()
+            if torch.cuda.max_memory_allocated() > 0
+            else 1
+        )
         self.values[self.batch][self.step] = perc * 100
 
         self.step += 1
