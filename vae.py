@@ -14,7 +14,7 @@ NUM_EPOCHS = 3
 TEST_DATA = 0.3  # 30%
 
 GRAD_REGULARIZATION_LIMIT = 10
-L2_REGULARIZATION = 10e-4
+L2_REGULARIZATION = 1e-5
 RNN_H_DIM = 500
 DENSE_DIM = 500
 Z_DIM = 3
@@ -140,8 +140,16 @@ class VariationalAutoEncoder(nn.Module):
 
         return x_t, z, mu_z, log_var_z
 
+    def calculate_l2_loss(self):
+        l2_loss = torch.tensor(0.0, requires_grad=True)
+        for param in self.parameters():
+            l2_loss += torch.norm(param) ** 2
+        return l2_loss
 
-def loss_function(x: Tensor, x_t: Tensor, mu_z: Tensor, logvar_z: Tensor, z: Tensor):
+
+def loss_function(
+    x: Tensor, x_t: Tensor, mu_z: Tensor, logvar_z: Tensor, z: Tensor, model, lambda_l2
+):
     recon_loss = nn.functional.mse_loss(x_t, x, reduction="sum")  # log(p(x|z))
     prior = torch.distributions.Normal(
         torch.zeros_like(mu_z), torch.ones_like(mu_z)
@@ -151,8 +159,9 @@ def loss_function(x: Tensor, x_t: Tensor, mu_z: Tensor, logvar_z: Tensor, z: Ten
         mu_z, torch.exp(0.5 * logvar_z)
     )  # posterior q(z|x)
     log_q_z_given_x = posterior.log_prob(z).sum(-1)  # log(q(z|x))
+    l2_reg = model.calculate_l2_loss()
     elbo = (
-        log_p_z + recon_loss - log_q_z_given_x
+        log_p_z + recon_loss - log_q_z_given_x + lambda_l2 * l2_reg
     ).mean()  # Monte Carlo estimate of ELBO
     return -elbo  # return negative ELBO as the loss to be minimized
 
