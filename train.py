@@ -22,7 +22,7 @@ else:
 # DEVICE = torch.device("mps") if  else  if  else "cpu")
 WINDOW_LENGTH = 30  # h
 BATCH_SIZE = 100  # h
-LR_RATE = 10e-3  # h
+LR_RATE = 10e-4  # h
 NUM_EPOCHS = 3  # range: any
 TEST_DATA = 0.3  # 30% range: 10-100%
 
@@ -38,7 +38,7 @@ DENSE_LAYERS = 2  # h
 GRAD_REGULARIZATIONLIMIT = 10  # h
 L2_REGULARIZATION = 10e-4  # h
 
-TARGET_DECAY = 0.5  # h range: 0-1
+TARGET_DECAY = 0.9999  # h range: 0-1
 WAVEBOUND_ERROR_DEVIATION = 1e-4  # h range: idk
 
 # Dataset Loading
