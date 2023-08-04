@@ -120,6 +120,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
                     )
 
             # Delete to reduce memory consumption
+            del record, source_params, target_params
             del z, x_t, mu_x
             del s_z, s_x_t, s_mu_x
             record_times.append(time.process_time() - record_time)
@@ -127,7 +128,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
         loop.set_postfix(source_loss=source_loss.item())
         avg_loss += target_loss.item()
         print(
-            "\nEpoch {} | Step: {}/{} | Average Loss Epoch: {} | Current: {} | {:.2f}s".format(
+            "\nEpoch {} | Step: {}/{} | AvrgEpoch: {} | Batch: {} | {:.2f}s".format(
                 epoch,
                 (counter + 1),
                 len(train_loader),
