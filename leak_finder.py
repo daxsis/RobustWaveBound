@@ -2,12 +2,13 @@ import torch
 
 
 class LeakFinder:
-    def __init__(self):
+    def __init__(self, device):
         self.step = 0  # used to keep track of the step in the batch
         self.batch = 0  # used to keep track of the batch
         self.values = {}
-        self.predict_every = 20  # how often to predict the leak position
+        self.predict_every = 10  # how often to predict the leak position
         self.verbose = True  # print the predicted leak position
+        self.device = device
 
     def set_batch(self, epoch):
         """
@@ -19,9 +20,9 @@ class LeakFinder:
 
     def get_cuda_perc(self):
         # get the percentage of cuda memory used
-        perc = torch.cuda.memory_allocated() / (
-            torch.cuda.max_memory_allocated()
-            if torch.cuda.max_memory_allocated() > 0
+        perc = torch.cuda.memory_allocated(self.device) / (
+            torch.cuda.max_memory_allocated(self.device)
+            if torch.cuda.max_memory_allocated(self.device) > 0
             else 1
         )
         self.values[self.batch][self.step] = perc * 100
