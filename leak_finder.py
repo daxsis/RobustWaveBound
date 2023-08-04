@@ -74,7 +74,7 @@ class LeakFinder:
         Find leaks in the training loop
         """
 
-        if len(self.batch) < 2:
+        if self.batch < 2:
             return
 
         if not self.verbose and self.batch % self.predict_every != 0:

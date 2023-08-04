@@ -78,7 +78,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
     start_time = time.process_time()
     for counter, data in loop:
         batch = torch.as_tensor(data, device=DEVICE)
-        leakfinder.set_batch(batch)
+        leakfinder.set_batch(counter)
         record_time = 0
         record_times = []
         for record in batch:  # BATCH_SIZE
