@@ -77,8 +77,8 @@ for epoch in range(1, NUM_EPOCHS + 1):
     loop = tqdm(enumerate(train_loader))
     start_time = time.process_time()
     for counter, data in loop:
-        leakfinder.set_batch(data)
         batch = torch.as_tensor(data, device=DEVICE)
+        leakfinder.set_batch(batch)
         record_time = 0
         record_times = []
         for record in batch:  # BATCH_SIZE
