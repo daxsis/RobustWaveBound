@@ -108,10 +108,9 @@ class VariationalAutoEncoder(nn.Module):
     # Sample from Gaussian
     def reparametrize(self, mu_z: Tensor, log_var_z: Tensor) -> Tensor:
         std_z = torch.exp(0.5 * log_var_z)
-        epsilon = torch.randn_like(std_z)
+        epsilon = torch.randn_like(std_z, device=self.device)
 
-        z = mu_z + epsilon * std_z
-        return z
+        return mu_z + epsilon * std_z  # z
 
     def decode(self, z):
         # LG-SSM state and observation equations
@@ -142,15 +141,14 @@ class VariationalAutoEncoder(nn.Module):
         return x_t, z, mu_z, log_var_z
 
 
-def loss_function(x: Tensor, x_t: Tensor, mu_x: Tensor, logvar_x: Tensor, z: Tensor):
-    recon_loss = nn.functional.mse_loss(x_t, x, reduction="none").sum(-1)  # log(p(x|z))
+def loss_function(x: Tensor, x_t: Tensor, mu_z: Tensor, logvar_z: Tensor, z: Tensor):
+    recon_loss = nn.functional.mse_loss(x_t, x, reduction="sum")  # log(p(x|z))
     prior = torch.distributions.Normal(
-        torch.zeros_like(mu_x, device=x.get_device()),
-        torch.ones_like(mu_x, device=x.get_device()),
+        torch.zeros_like(mu_z), torch.ones_like(mu_z)
     )  # prior p(z)
     log_p_z = prior.log_prob(z).sum(-1)  # log(p(z))
     posterior = torch.distributions.Normal(
-        mu_x, torch.exp(0.5 * logvar_x)
+        mu_z, torch.exp(0.5 * logvar_z)
     )  # posterior q(z|x)
     log_q_z_given_x = posterior.log_prob(z).sum(-1)  # log(q(z|x))
     elbo = (

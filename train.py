@@ -2,7 +2,7 @@ import sys
 import time
 import torch
 from tqdm import tqdm
-from torch import Tensor, nn, optim
+from torch import optim
 from torch.utils.data import DataLoader
 from dataset import Dataset
 from ema import EMA
@@ -81,15 +81,15 @@ for epoch in range(1, NUM_EPOCHS + 1):
         for record in batch:  # BATCH_SIZE
             record_time = time.process_time()
 
-            x_t, z, mu_x, logvar_x = target_model(record)
-            s_x_t, s_z, s_mu_x, s_logvar_x = source_model(record)
+            x_t, z, mu_z, logvar_z = target_model(record)
+            s_x_t, s_z, s_mu_z, s_logvar_z = source_model(record)
 
             source_optimizer.zero_grad()
             source_loss = loss_function(
                 record,
                 x_t.squeeze(),
-                mu_x.squeeze(),
-                logvar_x.squeeze(),
+                mu_z.squeeze(),
+                logvar_z.squeeze(),
                 z.squeeze(),
             )
             source_loss.backward(inputs=list(source_model.parameters()))
@@ -99,17 +99,17 @@ for epoch in range(1, NUM_EPOCHS + 1):
             target_loss = loss_function(
                 record,
                 s_x_t.squeeze(),
-                s_mu_x.squeeze(),
-                s_logvar_x.squeeze(),
+                s_mu_z.squeeze(),
+                s_logvar_z.squeeze(),
                 s_z.squeeze(),
             )
             target_loss.backward(inputs=list(target_model.parameters()))
             target_optimizer.step()
-            ema.update()
-            ema.apply_shadow()
 
             # Backprop
             with torch.no_grad():
+                ema.update()
+                ema.apply_shadow()
                 # Move the in-place operation out of the `with torch.no_grad()` block
                 for source_params, target_params in zip(
                     source_model.parameters(), target_model.parameters()
@@ -121,8 +121,8 @@ for epoch in range(1, NUM_EPOCHS + 1):
 
             # Delete to reduce memory consumption
             del record, source_params, target_params
-            del z, x_t, mu_x
-            del s_z, s_x_t, s_mu_x
+            del x_t, z, mu_z, logvar_z
+            del s_x_t, s_z, s_mu_z, s_logvar_z
             record_times.append(time.process_time() - record_time)
 
         loop.set_postfix(source_loss=source_loss.item())
@@ -138,8 +138,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
             )
         )
 
-        del source_loss, target_loss
-        batch.detach()
+        del source_loss, target_loss, batch
         torch.cuda.empty_cache()  # try empty cache
 
     current_time = time.process_time()
