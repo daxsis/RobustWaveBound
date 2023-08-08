@@ -79,7 +79,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 target_model,
                 L2_REGULARIZATION,
             )
-            target_loss.backward(inputs=list(target_model.parameters()))
+            target_loss.backward()
             target_optimizer.step()
 
             # Delete to reduce memory consumption
