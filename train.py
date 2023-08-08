@@ -87,10 +87,10 @@ for epoch in range(1, NUM_EPOCHS + 1):
             source_optimizer.zero_grad()
             source_loss = loss_function(
                 record,
-                x_t.squeeze(),
-                mu_z.squeeze(),
-                logvar_z.squeeze(),
-                z.squeeze(),
+                s_x_t.squeeze(),
+                s_mu_z.squeeze(),
+                s_logvar_z.squeeze(),
+                s_z.squeeze(),
                 source_model,
                 L2_REGULARIZATION,
             )
@@ -100,10 +100,10 @@ for epoch in range(1, NUM_EPOCHS + 1):
             target_optimizer.zero_grad()
             target_loss = loss_function(
                 record,
-                s_x_t.squeeze(),
-                s_mu_z.squeeze(),
-                s_logvar_z.squeeze(),
-                s_z.squeeze(),
+                x_t.squeeze(),
+                mu_z.squeeze(),
+                logvar_z.squeeze(),
+                z.squeeze(),
                 target_model,
                 L2_REGULARIZATION,
             )
