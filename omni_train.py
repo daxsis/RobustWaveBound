@@ -67,9 +67,9 @@ for epoch in range(1, NUM_EPOCHS + 1):
         record_times = []
         for record in batch:  # BATCH_SIZE
             record_time = time.process_time()
+            target_optimizer.zero_grad()
             x_t, z, mu_z, logvar_z = target_model(record)
 
-            target_optimizer.zero_grad()
             target_loss = loss_function(
                 record,
                 x_t.squeeze(),
@@ -79,7 +79,7 @@ for epoch in range(1, NUM_EPOCHS + 1):
                 target_model,
                 L2_REGULARIZATION,
             )
-            target_loss.backward()
+            target_loss.backward(inputs=list(target_model.parameters()))
             target_optimizer.step()
 
             # Delete to reduce memory consumption
